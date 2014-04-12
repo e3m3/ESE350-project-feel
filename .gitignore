@@ -1,0 +1,11 @@
+*.swp
+*.swo
+*.log
+*.out
+*.lock
+*~
+#~
+*.bin
+*.elf
+*.hex
+*/LPC176x/
