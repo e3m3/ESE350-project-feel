@@ -1,8 +1,9 @@
 #include "mbed.h"
 #include "MRF24J40.h"
+#include "ti_analog_mux.h"
 #include <string>
 
-#define NUM_PADS  4
+#define NUM_PADS  7
 
 #ifndef toggle
 #define toggle(val) ((val) = (val) ^ 1)
@@ -10,6 +11,7 @@
 
 // RF tranceiver to link with handheld.
 MRF24J40 mrf(p11, p12, p13, p14, p21);
+TIAnalogMux mux(p15, p24, p23, p26, p25, p27);
 
 // LEDs you can treat these as variables (led2 = 1 will turn led2 on!)
 DigitalOut led1(LED1);
@@ -19,6 +21,7 @@ DigitalOut led4(LED4);
 
 // Timer
 Timer timer;
+Ticker ticker;
 
 // Serial port for showing RX data.
 Serial pc(USBTX, USBRX);
@@ -27,6 +30,45 @@ Serial pc(USBTX, USBRX);
 char txBuffer[128];
 char rxBuffer[128];
 int rxLen;
+
+void step(void) { mux.step(); }
+int rf_receive(char *data, uint8_t maxLength);
+void rf_send(char *data, uint8_t len);
+
+
+//***************** You can start coding here *****************//
+int main (void) {
+  uint8_t channel = 12;
+  mrf.SetChannel(channel);
+  pc.baud(19200);
+
+  //AnalogIn* pads = (AnalogIn *) malloc(sizeof(AnalogIn)*NUM_PADS);
+  //pads[0] = AnalogIn(p15);
+  //pads[1] = AnalogIn(p16);
+  //pads[2] = AnalogIn(p17);
+  //pads[3] = AnalogIn(p18);
+
+  //Start the timer
+  timer.start();
+  mux.reset();
+  ticker.attach_us(&step, 160);
+
+  while (true) {
+    if (timer.read_ms() >= 50) {
+      timer.reset();
+      toggle(led1);
+      sprintf(txBuffer, "0,%d", NUM_PADS);
+      for (int i = 0; i < NUM_PADS; i++) {
+        // Insert the force value at the right offset from the start
+        // sprintf(txBuffer + 1 + i*7, ",%1.4f", pads[i].read());
+        sprintf(txBuffer + 3 + i*7, ",%1.4f", mux[i]);
+      }
+      rf_send(txBuffer, strlen(txBuffer) + 1);
+      pc.printf("Sent: %s\n", txBuffer);
+    }
+  }
+}
+
 
 //***************** Do not change these methods (please) *****************//
 
@@ -77,62 +119,4 @@ void rf_send(char *data, uint8_t len) {
 
   mrf.Send(send_buf, len + 8);
   free(send_buf);
-}
-
-
-//***************** You can start coding here *****************//
-int main (void) {
-  uint8_t channel = 12;
-  //Set the Channel. 0 is default, 15 is max
-  mrf.SetChannel(channel);
-
-  pc.printf("HERE!!\n");
-  
-  AnalogIn* pads = (AnalogIn *) malloc(sizeof(AnalogIn)*NUM_PADS);
-  pads[0] = AnalogIn(p15);
-  pads[1] = AnalogIn(p16);
-  pads[2] = AnalogIn(p17);
-  pads[3] = AnalogIn(p18);
-
-  //Start the timer
-  timer.start();
-
-  while(true) {
-    ////Try to receive some data
-    //rxLen = rf_receive(rxBuffer, 128);
-    //if (rxLen > 0) {
-    //  //Toggle the Led
-    //  led1 = led1^1;
-    //  pc.printf("Received: %s\n", rxBuffer);
-    //}
-    
-    //for (int i = 0; i < NUM_PADS; i++)
-    //  pc.printf("%1.4f\t", pads[i].read());
-    //pc.printf("\n");
-
-    if (timer.read_ms() >= 100) {
-      timer.reset();
-      toggle(led1);
-      sprintf(txBuffer, "%d", NUM_PADS);
-      for (int i = 0; i < NUM_PADS; i++) {
-        // Insert the force value at the right offset from the start
-        sprintf(txBuffer + 1 + i*7, ",%1.4f", pads[i].read());
-      }
-      rf_send(txBuffer, strlen(txBuffer) + 1);
-      pc.printf("Sent: %s\n", txBuffer);
-    }
-    
-    //Send some data every second
-    //if (timer.read_ms() >= 100) {
-    //  //Reset the timer to 0
-    //  timer.reset();
-    //  // Toggle LED 2.
-    //  led2 = led2^1;
-    //  //Add to the buffer. You may want to check out sprintf
-    //  strcpy(txBuffer, "Hello from the mBed!");
-    //  //Send the buffer
-    //  rf_send(txBuffer, strlen(txBuffer) + 1);
-    //  pc.printf("Sent: %s\n", txBuffer);
-    //}
-  }
 }
