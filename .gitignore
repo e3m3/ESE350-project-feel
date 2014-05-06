@@ -8,9 +8,9 @@
 *.bin
 *.elf
 *.hex
-*
 **/LPC176x/
 *.o
 *.d
 *.asm
 *.disasm
+*.pyc

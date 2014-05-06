@@ -133,7 +133,8 @@ class Center:
 if __name__ == "__main__":
     import sys
 
-    csv = "iris4.csv"  # wikipedia Iris_flower_data_set
+    csv = "datasets/training_data_board_5.6.14_1.45.csv"  # wikipedia Iris_flower_data_set
+    #csv = "iris4.csv"  # wikipedia Iris_flower_data_set
         # 5.1,3.5,1.4,0.2  # ,Iris-setosa ...
     N = 1000
     K = 20
