@@ -17,6 +17,16 @@
 #define SPI_WAIT_TIME 32  // us
 #define SPI_FREQ      1000000  // MHz
 
+#define ADDR_IMU      ((const int) 0xD0)
+#define NUM_IMU       3
+#define X_IMU         0
+#define Y_IMU         1
+#define Z_IMU         2
+#define X_OFST_IMU    ((int16_t) 7)
+#define Y_OFST_IMU    ((int16_t) -46)
+#define Z_OFST_IMU    ((int16_t) -13)
+#define IMU_XOUT_H    ((const char) 0x1D)
+
 
 // RF tranceiver to link with handheld.
 MRF24J40 mrf(p11, p12, p13, p14, p21);
@@ -34,6 +44,17 @@ Ticker spi_start_ticker;
 
 // Serial port for showing RX data.
 Serial pc(USBTX, USBRX);
+
+// IMU I2C Setup
+I2C i2c(p28, p27);
+InterruptIn imu_int(p29);
+
+volatile bool new_imu_int;
+int16_t imu[NUM_IMU];
+
+void ISR_imu_int(void);
+void setup_imu(void);
+///////////////////////
 
 // M2 SPI Setup
 SPI spi(p5, p6, p7);
@@ -184,8 +205,11 @@ void csd() {
 //***************** You can start coding here *****************//
 int main (void)
 {
+    // MRF SPI Init
     uint8_t channel = 12;
     print_adxl_timer.start();
+    mrf.SetChannel(channel); //Set the Channel. 0 is default, 15 is max
+    // ///////////
 
     // M2 SPI Init
     ss = 1;
@@ -195,9 +219,11 @@ int main (void)
     spi_start_ticker.attach_us(&SPI_start_handler, SPI_PRD*1000);
     read_adxl = false;
     // ///////////
-
-    //Set the Channel. 0 is default, 15 is max
-    mrf.SetChannel(channel);
+    
+    // IMU I2C Init
+    i2c.frequency(400000); // 400KHz
+    setup_imu();
+    // ///////////
 
     //Start the timer
     timer.start();
@@ -205,20 +231,22 @@ int main (void)
     err();
     testcheck = 1;
     
-    
     duty.start();
     high.attach(&act,0.02);
     low.attach(&csd,0.002);
     
-    pc.printf("started \r\n");
+    pc.printf("Starting...\n");
     while(1) {
         if (read_adxl) read_adxl_from_m2();
 
         if (print_adxl_timer.read_ms() > PRINT_PRD) {
           print_adxl_timer.reset();
-          pc.printf("Acceleration: ");
+          pc.printf("dx: ");
           for (int i = 0; i < NUM_ADXL; i++)
             pc.printf("%d\t", adxl[i]);
+          pc.printf("\tdtheta: ");
+          for (int i = 0; i < NUM_IMU; i++)
+            pc.printf("%d\t", imu[i]);
           pc.printf("\n");
         }
         
@@ -327,4 +355,35 @@ void read_adxl_from_m2(void) {
     incoming = write_to_spi(MBED_ADXL_COMP, false);
     incoming = write_to_spi(DUMMY_BYTE, false);
     ss = 1;
+}
+
+
+void ISR_imu_int(void) {
+  char data[6];
+  const char data_reg_addr = IMU_XOUT_H;
+  new_imu_int = true;
+
+  i2c.write(ADDR_IMU, &data_reg_addr, 1);
+  i2c.read(ADDR_IMU, data, 6);
+
+  imu[X_IMU] = (int16_t) (((data[0] << 8) + data[1]) + X_OFST_IMU);
+  imu[Y_IMU] = (int16_t) (((data[2] << 8) + data[3]) + Y_OFST_IMU);
+  imu[Z_IMU] = (int16_t) (((data[4] << 8) + data[5]) + Z_OFST_IMU);
+}
+
+
+void setup_imu(void) {
+    char PWR_MGM[2] = {0x3E, 0x80};     // Reset
+    char SMPLRT_DIV[2] = {0x15, 0x00};  // No sample rate division
+    char DLPF_FS[2] = {0x16, 0x1B};     // Full range, 42Hz low pass
+    char INT_CFG[2] = {0x17, 0x05};     // Interrupt on device and data ready
+    char PWR_MGM2[2] = {0x3E, 0x00};    // Begin sampling
+
+    i2c.write(ADDR_IMU, PWR_MGM, 2, true);
+    i2c.write(ADDR_IMU, SMPLRT_DIV, 2, true);
+    i2c.write(ADDR_IMU, DLPF_FS, 2, true);
+    i2c.write(ADDR_IMU, INT_CFG, 2, true);
+    i2c.write(ADDR_IMU, PWR_MGM2, 2, true);
+
+    imu_int.rise(&ISR_imu_int);
 }
