@@ -2,12 +2,21 @@
 #include "MRF24J40.h"
 #include <PwmOut.h>
 #include "stdio.h"
+#include <string.h>
+#include "../spi_int.h"
 
 #include <string>
 #include <cstdlib>
 #include <ctime>
 
 #define LINKED_PLAYER 0
+
+#define SPI_PRD       10  // ms
+#define PRINT_PRD     50  // ms
+#define DEBOUNCE_TSH  500 // ms
+#define SPI_WAIT_TIME 32  // us
+#define SPI_FREQ      1000000  // MHz
+
 
 // RF tranceiver to link with handheld.
 MRF24J40 mrf(p11, p12, p13, p14, p21);
@@ -20,9 +29,27 @@ DigitalOut led4(LED4);
 
 // Timer
 Timer timer;
+Timer print_adxl_timer;
+Ticker spi_start_ticker;
 
 // Serial port for showing RX data.
 Serial pc(USBTX, USBRX);
+
+// M2 SPI Setup
+SPI spi(p5, p6, p7);
+DigitalOut ss(p8);
+//InterruptIn reset_m2(p30);
+
+int outgoing, incoming;
+int adxl[NUM_ADXL];
+bool read_adxl;
+
+void SPI_start_handler(void);
+//void m2_reset_handler(void);
+int write_to_spi(int reg, bool no_read);
+void read_adxl_from_m2(void);
+///////////////////////
+
 
 // Used for sending and receiving
 char txBuffer[128];
@@ -34,9 +61,9 @@ PwmOut pp1(p23);
 PwmOut pp2(p24);
 PwmOut pp3(p25);
 PwmOut pp4(p26);
-DigitalOut pp5(p5);
-DigitalOut pp6(p6);
-DigitalOut pp7(p7);
+DigitalOut pp5(p15);
+DigitalOut pp6(p16);
+DigitalOut pp7(p17);
 
 Ticker high;
 Ticker low;
@@ -158,6 +185,16 @@ void csd() {
 int main (void)
 {
     uint8_t channel = 12;
+    print_adxl_timer.start();
+
+    // M2 SPI Init
+    ss = 1;
+    spi.format(8, 0);
+    //spi.format(16, 0);
+    spi.frequency(SPI_FREQ);
+    spi_start_ticker.attach_us(&SPI_start_handler, SPI_PRD*1000);
+    read_adxl = false;
+    // ///////////
 
     //Set the Channel. 0 is default, 15 is max
     mrf.SetChannel(channel);
@@ -175,12 +212,20 @@ int main (void)
     
     pc.printf("started \r\n");
     while(1) {
+        if (read_adxl) read_adxl_from_m2();
+
+        if (print_adxl_timer.read_ms() > PRINT_PRD) {
+          print_adxl_timer.reset();
+          pc.printf("Acceleration: ");
+          for (int i = 0; i < NUM_ADXL; i++)
+            pc.printf("%d\t", adxl[i]);
+          pc.printf("\n");
+        }
         
         //Try to receive some data
         rxLen = rf_receive(rxBuffer, 128);
-        //pc.printf("here");
         if(rxLen > 0) {
-            pc.printf("%s \r\n", rxBuffer );
+            //pc.printf("%s \r\n", rxBuffer );
             token = strtok(rxBuffer, " ,");
             player = atoi(token);
             if (player == LINKED_PLAYER) {
@@ -188,7 +233,12 @@ int main (void)
                 inputs = atoi(token);
                 for (int i = 1; i <= 4; i++) {
                     token = strtok(NULL, " ,");
+                    // GHETTO TESTING STUFF
+                    //if (i == 1 || i == 2) {
                     dutyValue = atof(token);
+                    //} else {
+                    //  dutyValue = 1.0;
+                    //}
                     actuate(i, dutyValue);
                 }
                 for (int i = 5; i <= inputs; i++) {
@@ -196,9 +246,11 @@ int main (void)
                     float temp = atof(token);
                     temp = 1.0  - temp;
                     temp = temp * 0.02;
+                    // GHETTO TESTING STUFF
+                    //darrayVal[i-5] = 0.0;
                     darrayVal[i-5] = temp;
                 }
-                pc.printf("\r\n");
+                //pc.printf("\r\n");
             }
         }
     }
@@ -242,3 +294,37 @@ int main (void)
             rf_send(txBuffer, strlen(txBuffer) + 1);
             pc.printf("Sent: %s\r\n", txBuffer);
         }*/
+
+
+void SPI_start_handler(void) {
+    read_adxl = true;
+}
+
+
+int write_to_spi(int reg, bool no_read) {
+    int read_val = DUMMY_BYTE;
+    outgoing = reg;
+    if (no_read)
+        spi.write(outgoing);
+    else
+        read_val = spi.write(outgoing);
+    wait_us(SPI_WAIT_TIME);
+    return read_val;
+}
+
+
+void read_adxl_from_m2(void) {
+    read_adxl = false;
+    ss = 0;
+    write_to_spi(MBED_ADXL_REQ, true);
+    //pc.printf("Sent: %d\t Received: %d\n", outgoing, incoming);
+    for (int i = 0x00; i < NUM_ADXL; i += 0x01) {
+        incoming = write_to_spi(SEND_LO_BYTE, false);
+        adxl[i] = incoming << 8;
+        incoming = write_to_spi(SEND_HI_BYTE, false);
+        adxl[i] |= incoming;
+    }
+    incoming = write_to_spi(MBED_ADXL_COMP, false);
+    incoming = write_to_spi(DUMMY_BYTE, false);
+    ss = 1;
+}

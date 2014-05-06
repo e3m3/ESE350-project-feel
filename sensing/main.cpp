@@ -40,7 +40,8 @@ void rf_send(char *data, uint8_t len);
 int main (void) {
   uint8_t channel = 12;
   mrf.SetChannel(channel);
-  pc.baud(19200);
+  //pc.baud(19200);
+  //pc.baud(19200);
 
   //AnalogIn* pads = (AnalogIn *) malloc(sizeof(AnalogIn)*NUM_PADS);
   //pads[0] = AnalogIn(p15);
