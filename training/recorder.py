@@ -43,10 +43,12 @@ _1_6 = ONE + SEP + SIX
 _1_9 = ONE + SEP + NINE
 
 _4_1 = FOUR + SEP + ONE
+_4_2 = FOUR + SEP + TWO
 _4_6 = FOUR + SEP + SIX
 _4_9 = FOUR + SEP + NINE
 
 _6_1 = SIX + SEP + ONE
+_6_2 = SIX + SEP + TWO
 _6_4 = SIX + SEP + FOUR
 _6_9 = SIX + SEP + SIX
 
@@ -54,9 +56,13 @@ _9_1 = NINE + SEP + ONE
 _9_4 = NINE + SEP + FOUR
 _9_6 = NINE + SEP + SIX
 
+_2_4 = TWO + SEP + FOUR
+_2_6 = TWO + SEP + SIX
+
 PARRY_TRANSITIONS = [
-        _6_4,
-        _4_6,
+        _2_4, _2_6,
+        _4_2, _4_6,
+        _6_2, _6_4
         ]
 #PARRY_TRANSITIONS = [
 #        _1_4, _1_6, _1_9,
