@@ -112,9 +112,8 @@ class DataRecorder(threading.Thread):
 
     def write_ds_to_file(self):
         print 'ds ==', self.ds 
-        #
-        #line = ','.join([str(x) for x in self.ds])
-        #self.file_map[self.current_handle].write(line + '\n')
+        line = ','.join([str(x) for x in self.ds])
+        self.file_map[self.current_handle].write(line + '\n')
 
     def run(self):
         try:
@@ -148,7 +147,7 @@ class DataRecorder(threading.Thread):
 try:
     kbd_event_q = Queue.Queue(maxsize=1)
     serial_port = serial.Serial(SERIAL_PORT, SERIAL_BAUD, timeout=SERIAL_TMOT)
-    training_file_map = {p:open(DIR + 'parry-' + p + '.csv', 'w')\
+    training_file_map = {p:open(DIR + 'parry-' + p + '.csv', 'a')\
             for p in PARRY_TRANSITIONS}
 
     listener = KeyboardListener(kbd_event_q)
