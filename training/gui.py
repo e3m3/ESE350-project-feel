@@ -138,7 +138,7 @@ class Gui:
         if not self.in_q.empty():
             try:
                 actuated = self.in_q.get_nowait()
-                for i, x in actuated:
+                for i, x in enumerate(actuated):
                     self.motors_actuated[i] = x
                 self.in_q.task_done()
                 print('GUI: got data from serial')
@@ -148,8 +148,8 @@ class Gui:
     def send_data_to_serial(self):
         if not self.out_q.full() and self.motor_clicked:
             self.out_q.put_nowait(self.motor_clicked)
+            print('GUI: sent data to serial')
         self.motor_clicked = None
-        print('GUI: sent data to serial')
 
     def update_gui(self):
         for i, on in enumerate(self.motors_actuated):
@@ -180,7 +180,7 @@ class SerialComm(threading.Thread):
 
     def send_data_to_serial(self):
         if self.motors_defended:
-            actuations = [str(int(x)) for x in self.motors_actuated]
+            actuations = [str(int(x)) for x in self.motors_defended]
             clicked_str = None
             if self.motor_clicked:
                 clicked_str = str(int(self.motor_clicked))
@@ -188,9 +188,10 @@ class SerialComm(threading.Thread):
                 clicked_str = '0'
             self.motor_clicked = None
             actuations.insert(0, clicked_str)
-            data_str = ','.join(actuations)
-            self.ser.write(data_str.encode('ascii', 'replace'))
-            print('SERIAL: write data to serial')
+            data_str = ','.join(actuations).encode('ascii', 'replace')
+            self.ser.write(data_str)
+            print('Sent:', data_str)
+            print('SERIAL: wrote data to serial')
 
     def send_data_to_analyzer(self):
         if not self.a_out_q.full():
@@ -209,12 +210,12 @@ class SerialComm(threading.Thread):
         if len(line) > 0:
             try:
                 split = [e[e.find(':') + 1:].strip() for e in line.split('\t\t')]
-                vals = [int(val) for e in split[1:2] for val in e.split('\t')]
+                vals = [int(val) for e in split[0:2] for val in e.split('\t')]
                 for i, val in enumerate(vals):
                     self.ds[i] = val
                 #TODO
-                #for i, val in enumerate(split[3]):
-                #    self.motors_actuated[i] = bool(val)
+                for i, val in enumerate(split[2]):
+                    self.motors_actuated[i] = bool(val)
                 print('SERIAL: read data from serial')
             except ValueError:
                 pass
@@ -287,35 +288,37 @@ class DataAnalyzer(threading.Thread):
             self.out_q.put_nowait(self.motors_defended)
             print('ANALYZER: send data to serial')
 
-    def distance(p1, p2):
-        x1, y1 = p1[1], p1[2]
-        x2, y2 = p2[1], p2[2]
+    def distance(self, p1, p2):
+        x1, y1 = p1[0], p1[1]
+        x2, y2 = p2[0], p2[1]
         return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
     def process_data(self):
         vector = np.sum(self.window, axis=1)
-        proj_v = proj*vector
-        print(str(proj_v))
+        proj_v = self.proj.dot(vector)
         best = None
-        for centriod in self.centroids:
-            d = self.distance(proj_v, centroid['point'])
-            if not best or d < best[1]:
+        for centroid in self.centroids:
+            d = self.distance(proj_v[0:2], centroid['point'])
+            if not best or d < best[0]:
                 best = (d, centroid['tag'])
-        self.parry_transition(best[2])
+        self.parry_transition(best[1])
         self.map_defended_motors()
         print('ANALYZER: processed data')
 
     def parry_transition(self, tag):
         if tag == TRANS1 and self.current_parry == FOUR:
             self.current_parry = SIX
+            print('================================================== SIX')
         elif tag == TRANS2 and self.current_parry == SIX:
             self.current_parry = FOUR
+            print('================================================== FOUR')
 
     def map_defended_motors(self):
         if self.current_parry == FOUR:
             self.motors_defended = [False, False, False, True, False, True, False]
-        if self.current_parry == SIX:
+        elif self.current_parry == SIX:
             self.motors_defended = [False, False, True, False, True, False, False]
+        print('=================================================== CURRENT PARRY:', self.current_parry)
 
     def run(self):
         try:
@@ -325,6 +328,7 @@ class DataAnalyzer(threading.Thread):
                 self.get_data_from_serial()
                 self.process_data()
                 self.send_data_to_serial()
+                time.sleep(0.05)
         except KeyboardInterrupt:
             self.quit_event.set()
 
@@ -343,7 +347,7 @@ try:
     with open(CENTRIOD_FILE, 'r') as f:
         for line in f.readlines():
             (x, y, tag) = tuple(line.split(','))
-            centroids.append({'point':(x, y), 'tag':tag})
+            centroids.append({'point':(float(x), float(y)), 'tag':tag})
 
     gui = Gui(serial_to_gui_q, gui_to_serial_q, quit_event)
     serial_comm = SerialComm(analyzer_to_serial_q, serial_to_analyzer_q, gui_to_serial_q, serial_to_gui_q, serial_port, quit_event)
