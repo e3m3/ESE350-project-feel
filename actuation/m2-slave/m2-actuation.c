@@ -64,7 +64,7 @@ ISR(SPI_STC_vect) {
 
 int main(void) {
   m_clockdivide(0);
-  m_usb_init();
+  //m_usb_init();
   sei();
 
   spi_event = false;
@@ -80,7 +80,7 @@ int main(void) {
 
   set(PORTE, 2);
   clear(PORTE, 6);
-  while (!m_usb_isconnected());
+  //while (!m_usb_isconnected());
   set(PORTE, 6);
 
   /***  Set Analog Inputs ***/
@@ -138,15 +138,15 @@ int main(void) {
     if (adc_completed) {
       adc_completed = false;
       //PORTE ^= 0x04;
-      m_usb_tx_string("Acceleration:\t");
-      for (i = 0; i < NUM_ADXL; i++) {
-        m_usb_tx_char('[');
-        m_usb_tx_int(i);
-        m_usb_tx_string("] ");
-        m_usb_tx_int(adxl[i]);
-        m_usb_tx_char('\t');
-      }
-      m_usb_tx_char('\n');
+      //m_usb_tx_string("Acceleration:\t");
+      //for (i = 0; i < NUM_ADXL; i++) {
+      //  m_usb_tx_char('[');
+      //  m_usb_tx_int(i);
+      //  m_usb_tx_string("] ");
+      //  m_usb_tx_int(adxl[i]);
+      //  m_usb_tx_char('\t');
+      //}
+      //m_usb_tx_char('\n');
     }
 
     if (spi_event) {

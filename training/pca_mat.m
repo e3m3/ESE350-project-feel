@@ -1,9 +1,9 @@
-FILEIN = 'datasets/parry-6,4,6.csv';
-FILEOUT_PROJ = 'clusters/2-trans_4,6_projection.csv';
-FILEOUT_CENT = 'clusters/2-trans_4,6_centriods.txt';
+FILEIN = 'new_datasets/parry-6,4,6.csv';
+FILEOUT_PROJ = 'new_clusters/2-trans_4,6_projection.csv';
+FILEOUT_CENT = 'new_clusters/2-trans_4,6_centroids.txt';
 
-FILESET_1 = 'datasets/parry-4,6.csv';
-FILESET_2 = 'datasets/parry-6,4.csv';
+FILESET_1 = 'new_datasets/parry-4,6.csv';
+FILESET_2 = 'new_datasets/parry-6,4.csv';
 
 A = csvread(FILEIN)';
 [K, N] = size(A);
@@ -12,8 +12,8 @@ mn = mean(A, 2);
 A = A - repmat(mn, 1, N);
 
 %%% Trying sliding window
-window_size = 12;
-A = conv2(A, ones(1, window_size), 'same');
+%window_size = 12;
+%A = conv2(A, ones(1, window_size), 'same');
 %%%
 
 
@@ -107,12 +107,12 @@ D1 = conv2(D1, ones(1, window_size), 'same');
 D2 = conv2(D2, ones(1, window_size), 'same');
 P1 = PC'*D1;
 P2 = PC'*D2;
-centroid_1 = [mean(P1(1, :)), mean(P1(2, :))];
-centroid_2 = [mean(P2(1, :)), mean(P2(2, :))];
+centroid_1 = [mean(P1(1, :)), mean(P1(2, :)), mean(P1(3, :))];
+centroid_2 = [mean(P2(1, :)), mean(P2(2, :)), mean(P2(3, :))];
 
-dist = @(p1, p2) (sqrt((p2(1) - p1(1))^2 + (p2(2) - p1(2))^2));
-dist1 = dist(centroid_1, mean_cl_1(1:2));
-dist2 = dist(centroid_1, mean_cl_2(1:2));
+dist = @(p1, p2) (sqrt((p2(1) - p1(1))^2 + (p2(2) - p1(2))^2 + (p2(3) - p1(3))^2));
+dist1 = dist(centroid_1, mean_cl_1(1:3));
+dist2 = dist(centroid_1, mean_cl_2(1:3));
 if dist1 < dist2
   tag1 = '4_6';
   tag2 = '6_4';
@@ -121,8 +121,8 @@ else
   tag1 = '6_4';
 end
 centroid_file = fopen(FILEOUT_CENT, 'wt');
-fprintf(centroid_file, '%f,%f,%s\n', centroid_1(1), centroid_1(2), tag1);
-fprintf(centroid_file, '%f,%f,%s\n', centroid_2(1), centroid_2(2), tag2);
+fprintf(centroid_file, '%f,%f,%f,%s\n', mean_cl_1(1), mean_cl_1(2), mean_cl_1(3), tag1);
+fprintf(centroid_file, '%f,%f,%f,%s\n', mean_cl_2(1), mean_cl_2(2), mean_cl_2(3), tag2);
 %fwrite(centroid_file, [num2str(centroid_1(1)) ',' num2str(centroid_1(2)) ',' tag1 '\r\n']);
 %fwrite(centroid_file, [num2str(centroid_2(1)) ',' num2str(centroid_2(2)) ',' tag2 '\r\n']);
 fclose(centroid_file);

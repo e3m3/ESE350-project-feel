@@ -18,7 +18,7 @@ PROC_INTERVAL = 0.007
 VECT_SIZE = 6
 PCA_BLK_SIZE = 12
 
-DIR = 'datasets/'
+DIR = 'new_datasets/'
 FILE_OUT = 'dummy.csv'
 #FILE_OUT = 'datasets/training_data_board_5.6.14_1.45.csv'
 
@@ -60,10 +60,14 @@ _2_4 = TWO + SEP + FOUR
 _2_6 = TWO + SEP + SIX
 
 PARRY_TRANSITIONS = [
-        _2_4, _2_6,
-        _4_2, _4_6,
-        _6_2, _6_4
+        _4_6,
+        _6_4
         ]
+#PARRY_TRANSITIONS = [
+#        _2_4, _2_6,
+#        _4_2, _4_6,
+#        _6_2, _6_4
+#        ]
 #PARRY_TRANSITIONS = [
 #        _1_4, _1_6, _1_9,
 #        _4_1, _4_6, _4_9,
@@ -105,10 +109,10 @@ class DataRecorder(threading.Thread):
 
     def get_ds(self):
         line = self.ser.readline()
-        if len(line) > 0:
+        if len(line) > 0 and not (line[0:6] == 'DEBUG:'):
             try:
                 split = [e[e.find(':') + 1:].strip() for e in line.split('\t\t')]
-                vals = [int(val) for e in split for val in e.split('\t')]
+                vals = [int(val) for e in split[0:2] for val in e.split('\t')]
                 for i, val in enumerate(vals):
                     self.ds[i] = val
             except ValueError:

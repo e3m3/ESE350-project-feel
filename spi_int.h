@@ -11,7 +11,7 @@
 #define SEND_HI_BYTE    0xF1
 
 #define NUM_ADXL        0x03
-#define NUM_FSR         0x02
+#define NUM_FSR         0x07
 
 #define M2_ACK_ADXL     0xAC
 #define M2_ACK_FSR      0xAD
