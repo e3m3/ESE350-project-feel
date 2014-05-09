@@ -3,7 +3,7 @@
 #include <PwmOut.h>
 #include "stdio.h"
 #include <string.h>
-#include "../spi_int.h"
+#include "../../spi_int.h"
 
 #include <string>
 #include <cstdlib>

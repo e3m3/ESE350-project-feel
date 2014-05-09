@@ -50,7 +50,16 @@ TRANS2 = '_'.join((SIX, FOUR))
 NO_ACTUATE = '0'
 WINDOW_SIZE = 12
 VECT_SIZE = 6
+
+MIN_PROJ_COMP = 2.0
+MAX_CLUST_DIST = 50.0
 #####
+
+
+def distance(p1, p2):
+    x1, y1 = p1[0], p1[1]
+    x2, y2 = p2[0], p2[1]
+    return sqrt((x2 - x1)**2 + (y2 - y1)**2)
 
 
 #class Gui(threading.Thread):
@@ -97,6 +106,7 @@ class Gui:
 
         self.image = PhotoImage(file=FENCER_IMAGE)
         self.canvas.create_image(WIDTH/2, HEIGHT/2, image=self.image)
+        self.image.bind('<l>', self.motor_click_handler)
 
         for key in self.motors.keys():
             self.draw_motor_status(key, OFF)
@@ -118,10 +128,15 @@ class Gui:
         self.quit_event.set()
         self.root.quit()
 
-    def motor_click_handler(self, motor_id):
-        self.motor_clicked = motor_id
-        self.motors_actuated[motor_id] = not self.motors_actuated[motors_id]
-        print('GUI: got click')
+    def motor_click_handler(self, mouse_event):
+        mouse_pos = mouse_event.x, mouse_event.y
+        for motor_id, motor_dict self.motors.items():
+            d = distance(mouse_pos, motor_dict['pos'])
+            if d < (R + 5):
+                self.motor_clicked = motor_id
+                self.motors_actuated[motor_id] = not self.motors_actuated[motors_id]
+                print('GUI: got click')
+                break
 
     def draw_motor_status(self, motor_id, color):
         motor = self.motors[motor_id]
@@ -207,7 +222,7 @@ class SerialComm(threading.Thread):
 
     def get_data_from_serial(self):
         line = self.ser.readline().decode()
-        if len(line) > 0:
+        if len(line) > 0 and not (line[0:6] == 'DEBUG:'):
             try:
                 split = [e[e.find(':') + 1:].strip() for e in line.split('\t\t')]
                 vals = [int(val) for e in split[0:2] for val in e.split('\t')]
@@ -221,6 +236,8 @@ class SerialComm(threading.Thread):
                 pass
             except IndexError:
                 print('Split: ', split, '\tVals: ', vals)
+        elif len(line) > 0 and (line[0:6] == 'DEBUG:'):
+            print(line)
 
     def get_motor_data_from_analyzer(self):
         if not self.a_in_q.empty():
@@ -288,19 +305,20 @@ class DataAnalyzer(threading.Thread):
             self.out_q.put_nowait(self.motors_defended)
             print('ANALYZER: send data to serial')
 
-    def distance(self, p1, p2):
-        x1, y1 = p1[0], p1[1]
-        x2, y2 = p2[0], p2[1]
-        return sqrt((x2 - x1)**2 + (y2 - y1)**2)
-
     def process_data(self):
         vector = np.sum(self.window, axis=1)
         proj_v = self.proj.dot(vector)
+        if proj_v[0] < MIN_PROJ_COMP and proj_v[1] < MIN_PROJ_COMP:
+            print('ANALYZER: ignoring window value')
+            return
         best = None
         for centroid in self.centroids:
-            d = self.distance(proj_v[0:2], centroid['point'])
+            d = distance(proj_v[0:2], centroid['point'])
             if not best or d < best[0]:
                 best = (d, centroid['tag'])
+        if best[0] > MAX_CLUST_DIST:
+            print('ANALYZER: ignoring window value')
+            return
         self.parry_transition(best[1])
         self.map_defended_motors()
         print('ANALYZER: processed data')
@@ -361,9 +379,9 @@ try:
     serial_comm.join()
     data_analyzer.join()
 except KeyboardInterrupt:
-    pass
-#finally:
-#    if serial_port:
-#        serial_port.close()
-#    print('Exiting.')
-#    sys.exit()
+    quit_event.set()
+finally:
+    if serial_port:
+        serial_port.close()
+    print('Exiting.')
+    sys.exit()

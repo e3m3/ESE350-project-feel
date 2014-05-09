@@ -16,9 +16,9 @@
 volatile bool spi_event;
 volatile int state, spi_write_state;
 volatile int outgoing, incoming;
-volatile int current_adxl;
+volatile int current_fsr;
 
-volatile int adxl[NUM_ADXL];
+volatile int fsr[NUM_FSR];
 volatile bool adc_completed;
 volatile unsigned short next_adc_chan;
 int i;
@@ -29,35 +29,35 @@ void set_adc_mux(unsigned short chan);
 
 ISR(ADC_vect) {
   set(ADCSRA, ADIF);
-  adxl[next_adc_chan] = ADC;
-  next_adc_chan = (next_adc_chan + 1)%NUM_ADXL;
+  fsr[next_adc_chan] = ADC;
+  next_adc_chan = (next_adc_chan + 1)%NUM_FSR;
   set_adc_mux(next_adc_chan);
   set(ADCSRA, ADSC);
   adc_completed = true;
 }
 
 
-int temp;
 ISR(SPI_STC_vect) {
   spi_event = true;
   incoming = SPDR;
 
-  if (state == M2_IDLE && incoming == MBED_ADXL_REQ) {
-    current_adxl = M2_ADXL_X;
-    outgoing = high_byte(adxl[current_adxl]);
+  if (state == M2_IDLE && incoming == MBED_FSR_REQ) {
+    current_fsr = M2_FSR_0;
+    //outgoing = fsr[current_fsr] >> 2;
+    outgoing = high_byte(fsr[current_fsr]);
     SPDR = outgoing;
-    state = M2_SEND_ADXL;
-  } else if (state == M2_SEND_ADXL && incoming == SEND_LO_BYTE) {
-    outgoing = low_byte(adxl[current_adxl]);
+    //current_fsr += 0x01;
+    state = M2_SEND_FSR;
+  } else if (state == M2_SEND_FSR && incoming == SEND_LO_BYTE) {
+    //outgoing = fsr[current_fsr] >> 2;
+    outgoing = low_byte(fsr[current_fsr]);
     SPDR = outgoing;
-    current_adxl += 0x01;
-  } else if (state == M2_SEND_ADXL && incoming == SEND_HI_BYTE) {
-    outgoing = high_byte(adxl[current_adxl]);
+    current_fsr += 0x01;
+  } else if (state == M2_SEND_FSR && incoming == SEND_HI_BYTE) {
+    outgoing = high_byte(fsr[current_fsr]);
     SPDR = outgoing;
-  } else if (state == M2_SEND_ADXL && incoming == MBED_ADXL_COMP) {
+  } else if (state == M2_SEND_FSR && incoming == MBED_FSR_COMP) {
     state = M2_IDLE;
-  } else {
-    //toggle(PORTE, 2);
   }
 }
 
@@ -69,9 +69,9 @@ int main(void) {
 
   spi_event = false;
   state = M2_IDLE;
-  current_adxl = M2_ADXL_X;
-  for (i = 0; i < NUM_ADXL; i++)
-    adxl[i] = 0;
+  current_fsr = M2_FSR_0;
+  for (i = 0; i < NUM_FSR; i++)
+    fsr[i] = 0;
   adc_completed = false;
   next_adc_chan = 0;
 
@@ -138,12 +138,12 @@ int main(void) {
     if (adc_completed) {
       adc_completed = false;
       //PORTE ^= 0x04;
-      m_usb_tx_string("Acceleration:\t");
-      for (i = 0; i < NUM_ADXL; i++) {
+      m_usb_tx_string("Pad force:\t");
+      for (i = 0; i < NUM_FSR; i++) {
         m_usb_tx_char('[');
         m_usb_tx_int(i);
         m_usb_tx_string("] ");
-        m_usb_tx_int(adxl[i]);
+        m_usb_tx_int(fsr[i]);
         m_usb_tx_char('\t');
       }
       m_usb_tx_char('\n');
