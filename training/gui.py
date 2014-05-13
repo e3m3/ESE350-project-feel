@@ -290,8 +290,8 @@ class SerialComm(threading.Thread):
                 print('Split: ', split, '\tVals: ', vals)
                 #print('Split[2]: ', split[2])
         elif len(line) > 0 and (line[0:6] == 'DEBUG:'):
-            pass
-            #print(line)
+            #pass
+            print(line)
 
     def get_motor_data_from_analyzer(self):
         if not self.a_in_q.empty():

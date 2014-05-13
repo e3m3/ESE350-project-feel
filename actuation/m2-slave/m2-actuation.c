@@ -78,10 +78,11 @@ int main(void) {
   set(DDRE, 2);
   set(DDRE, 6);
 
-  set(PORTE, 2);
-  clear(PORTE, 6);
-  //while (!m_usb_isconnected());
+  clear(PORTE, 2);
   set(PORTE, 6);
+  //clear(PORTE, 6);
+  //while (!m_usb_isconnected());
+  //set(PORTE, 6);
 
   /***  Set Analog Inputs ***/
   // Set Vcc as the analog reference voltage
@@ -151,6 +152,7 @@ int main(void) {
 
     if (spi_event) {
       spi_event = false;
+      toggle(PORTE, 6);
       //m_usb_tx_string("Received: ");
       //m_usb_tx_int(incoming);
       //m_usb_tx_string("\tSent: ");
