@@ -11,6 +11,8 @@ Author/Maintainer:  Kevin Lu <lukevin13@users.noreply.github.com>
 
 #   ProjectFEEL
 
+ProjectFEEL, Force-Emitting Electric Lamé.
+
 University of Pennsylvania Embedded Systems ([ESE350][1] [[1]]) Final Project.
 
 Programs for an [m2][2] [[2]] and [mbed][3] [[3]] microcontroller.
@@ -21,6 +23,8 @@ This is fed into a python program that provides the ability to activate connecte
 ##  Demo
 
 Watch the ProjectFEEL demo on [YouTube][4] [[4]].
+
+[![ProjectFEEL video demo](https://img.youtube.com/vi/izo6i9WyqL8/maxresdefault.jpg)](https://www.youtube.com/watch?v=izo6i9WyqL8)
 
 
 #   References
